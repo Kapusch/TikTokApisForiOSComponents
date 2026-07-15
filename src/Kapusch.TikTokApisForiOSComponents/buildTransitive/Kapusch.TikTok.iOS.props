@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <UseKapuschTikTokIosInteropFromSource Condition="'$(UseKapuschTikTokIosInteropFromSource)' == ''">false</UseKapuschTikTokIosInteropFromSource>
+    <DisableKapuschTikTokIosNativeAssets Condition="'$(DisableKapuschTikTokIosNativeAssets)' == ''">false</DisableKapuschTikTokIosNativeAssets>
+  </PropertyGroup>
+</Project>

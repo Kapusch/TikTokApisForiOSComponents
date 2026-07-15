@@ -1,0 +1,2 @@
+# URL SHA256 filename extracted-directory
+https://codeload.github.com/tiktok/tiktok-opensdk-ios/tar.gz/refs/tags/v2.5.0 b731d33d243d7195e9cc686b8cc85e2ea0b6ce2c9682a4190c986f475e090378 tiktok-opensdk-ios-v2.5.0.tar.gz tiktok-opensdk-ios-2.5.0

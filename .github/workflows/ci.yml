@@ -1,0 +1,30 @@
+name: ci
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build_pack_ios:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Install iOS workload
+        run: dotnet workload install ios
+      - name: Build pinned Core + Share wrapper
+        run: bash src/Kapusch.TikTokApisForiOSComponents/Native/iOS/build.sh
+      - name: Pack
+        run: dotnet pack src/Kapusch.TikTokApisForiOSComponents/Kapusch.TikTokApisForiOSComponents.csproj -c Release -o artifacts/nuget
+      - name: Validate package
+        run: scripts/validate-package.sh
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget
+          path: artifacts/nuget/*.nupkg
+

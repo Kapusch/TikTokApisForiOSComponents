@@ -1,0 +1,36 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Native/**</DefaultItemExcludes>
+    <PackageId>Kapusch.TikTok.iOS</PackageId>
+    <AssemblyName>Kapusch.TikTok.iOS</AssemblyName>
+    <RootNamespace>Kapusch.TikTok.iOS</RootNamespace>
+    <Version>1.0.0</Version>
+    <Authors>Kapusch</Authors>
+    <Description>TikTok OpenSDK iOS Core and Share interop with deterministic native packaging.</Description>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Kapusch/TikTokApisForiOSComponents</RepositoryUrl>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>nuget-readme.md</PackageReadmeFile>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NativeBuildDir Condition="'$(NativeBuildDir)' == '' and Exists('Native/iOS/build/ktkshare.xcframework')">Native/iOS/build</NativeBuildDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Remove="Native/**" />
+    <EmbeddedResource Remove="Native/**" />
+    <None Remove="Native/**" />
+    <None Include="buildTransitive/**" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="../../THIRD_PARTY_NOTICES.md" Pack="true" PackagePath="/" />
+    <None Include="nuget-readme.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(NativeBuildDir)' != ''">
+    <None Include="$(NativeBuildDir)/ktkshare.xcframework/**" Pack="true" PackagePath="ktkshare.xcframework/" />
+    <None Include="$(NativeBuildDir)/privacy/**" Pack="true" PackagePath="privacy/" />
+  </ItemGroup>
+  <Target Name="CheckTikTokNativeAssets" BeforeTargets="GenerateNuspec" Condition="'$(IsPackable)' == 'true'">
+    <Error Condition="'$(NativeBuildDir)' == '' or !Exists('$(NativeBuildDir)/ktkshare.xcframework')" Text="Build TikTok iOS native assets first with Native/iOS/build.sh." />
+  </Target>
+</Project>

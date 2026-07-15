@@ -1,0 +1,24 @@
+<Project>
+  <PropertyGroup>
+    <_KapuschTikTokIosPackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_KapuschTikTokIosPackageRoot>
+    <_KapuschTikTokIosAssetRoot Condition="'$(UseKapuschTikTokIosInteropFromSource)' == 'true'">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../Native/iOS/build'))</_KapuschTikTokIosAssetRoot>
+    <_KapuschTikTokIosAssetRoot Condition="'$(UseKapuschTikTokIosInteropFromSource)' != 'true'">$(_KapuschTikTokIosPackageRoot)</_KapuschTikTokIosAssetRoot>
+    <_KapuschTikTokIosPrivacyRoot>$([System.IO.Path]::Combine('$(_KapuschTikTokIosAssetRoot)', 'privacy'))</_KapuschTikTokIosPrivacyRoot>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' and '$(DisableKapuschTikTokIosNativeAssets)' != 'true'">
+    <BundleResource Include="$(_KapuschTikTokIosPrivacyRoot)/TikTokOpenSDKCore.PrivacyInfo.xcprivacy" LogicalName="TikTokOpenSDKCore_Privacy.bundle/PrivacyInfo.xcprivacy" />
+    <BundleResource Include="$(_KapuschTikTokIosPrivacyRoot)/TikTokOpenShareSDK.PrivacyInfo.xcprivacy" LogicalName="TikTokOpenShareSDK_Privacy.bundle/PrivacyInfo.xcprivacy" />
+  </ItemGroup>
+  <Target Name="KapuschTikTok_InjectIosNativeReferences" BeforeTargets="CoreCompile" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' and '$(DisableKapuschTikTokIosNativeAssets)' != 'true'">
+    <PropertyGroup>
+      <_KapuschTikTokIosWrapper>$([System.IO.Path]::Combine('$(_KapuschTikTokIosAssetRoot)', 'ktkshare.xcframework'))</_KapuschTikTokIosWrapper>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_KapuschTikTokIosWrapper)')" Text="Kapusch.TikTok.iOS native wrapper is missing: $(_KapuschTikTokIosWrapper)" />
+    <ItemGroup>
+      <NativeReference Include="$(_KapuschTikTokIosWrapper)">
+        <Kind>Static</Kind>
+        <ForceLoad>true</ForceLoad>
+      </NativeReference>
+    </ItemGroup>
+  </Target>
+</Project>
