@@ -4,7 +4,7 @@ using System.Text.Json;
 
 namespace Kapusch.TikTok.iOS;
 
-public static unsafe class NativeTikTokShare
+public static unsafe partial class NativeTikTokShare
 {
 	public static Task<NativeTikTokShareResult> ShareImagesAsync(
 		IReadOnlyList<string> localIdentifiers,
@@ -12,7 +12,7 @@ public static unsafe class NativeTikTokShare
 	)
 	{
 		ArgumentNullException.ThrowIfNull(localIdentifiers);
-		if (localIdentifiers.Count is < 2 or > 12)
+		if (localIdentifiers.Count is < 1 or > 12)
 			throw new ArgumentOutOfRangeException(nameof(localIdentifiers));
 		cancellationToken.ThrowIfCancellationRequested();
 
@@ -33,7 +33,7 @@ public static unsafe class NativeTikTokShare
 		var jsonPointer = Marshal.StringToCoTaskMemUTF8(json);
 		try
 		{
-			ResolveShareImages()(jsonPointer, &ShareCallback, GCHandle.ToIntPtr(handle));
+			ShareImagesNative(jsonPointer, &ShareCallback, GCHandle.ToIntPtr(handle));
 		}
 		catch
 		{
@@ -51,7 +51,7 @@ public static unsafe class NativeTikTokShare
 	{
 		if (nsUrlHandle == IntPtr.Zero)
 			return false;
-		return ResolveHandleOpenUrl()(nsUrlHandle) != 0;
+		return HandleOpenUrlNative(nsUrlHandle) != 0;
 	}
 
 	[UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
@@ -74,20 +74,13 @@ public static unsafe class NativeTikTokShare
 		}
 	}
 
-	private static IntPtr Resolve(string symbol) =>
-		NativeLibrary.GetExport(NativeLibrary.GetMainProgramHandle(), symbol);
+	[LibraryImport("__Internal", EntryPoint = "ktk_tiktok_share_images")]
+	private static partial void ShareImagesNative(
+		IntPtr localIdentifiersJson,
+		delegate* unmanaged[Cdecl]<int, IntPtr, IntPtr, void> callback,
+		IntPtr context
+	);
 
-	private static delegate* unmanaged[Cdecl]<
-		IntPtr,
-		delegate* unmanaged[Cdecl]<int, IntPtr, IntPtr, void>,
-		IntPtr,
-		void> ResolveShareImages() =>
-		(delegate* unmanaged[Cdecl]<
-			IntPtr,
-			delegate* unmanaged[Cdecl]<int, IntPtr, IntPtr, void>,
-			IntPtr,
-			void>)Resolve("ktk_tiktok_share_images");
-
-	private static delegate* unmanaged[Cdecl]<IntPtr, byte> ResolveHandleOpenUrl() =>
-		(delegate* unmanaged[Cdecl]<IntPtr, byte>)Resolve("ktk_tiktok_handle_open_url");
+	[LibraryImport("__Internal", EntryPoint = "ktk_tiktok_handle_open_url")]
+	private static partial byte HandleOpenUrlNative(IntPtr nsUrlHandle);
 }

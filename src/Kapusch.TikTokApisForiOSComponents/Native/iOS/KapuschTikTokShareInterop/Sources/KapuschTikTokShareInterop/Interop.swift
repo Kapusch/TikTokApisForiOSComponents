@@ -46,7 +46,7 @@ public func ktk_tiktok_share_images(
 
 	let data = Data(String(cString: localIdentifiersJson).utf8)
 	guard let localIdentifiers = try? JSONDecoder().decode([String].self, from: data),
-		localIdentifiers.count >= 2,
+		localIdentifiers.count >= 1,
 		localIdentifiers.count <= 12
 	else {
 		invoke(callback, status: .failed, errorCode: "invalid_image_identifiers", context: context)
@@ -103,5 +103,17 @@ public func ktk_tiktok_share_images(
 @_cdecl("ktk_tiktok_handle_open_url")
 public func ktk_tiktok_handle_open_url(_ urlPtr: UnsafeMutableRawPointer) -> Bool {
 	let url = Unmanaged<NSURL>.fromOpaque(urlPtr).takeUnretainedValue() as URL
+	let info = Bundle.main.infoDictionary ?? [:]
+	let callbackScheme = info["TikTokURLScheme"] as? String
+	let redirectURI = (info["TikTokRedirectURI"] as? String).flatMap(URL.init(string:))
+	let isCustomSchemeCallback =
+		url.scheme?.caseInsensitiveCompare(callbackScheme ?? "") == .orderedSame
+	let isUniversalLinkCallback =
+		url.scheme?.caseInsensitiveCompare(redirectURI?.scheme ?? "") == .orderedSame
+		&& url.host?.caseInsensitiveCompare(redirectURI?.host ?? "") == .orderedSame
+		&& url.path == redirectURI?.path
+	guard isCustomSchemeCallback || isUniversalLinkCallback else {
+		return false
+	}
 	return TikTokURLHandler.handleOpenURL(url)
 }

@@ -17,11 +17,11 @@ public override bool ContinueUserActivity(
 	&& NativeTikTokShare.HandleOpenUrl(url.Handle);
 ```
 
-After obtaining add-only Photos permission and creating two assets, pass their local identifiers in display order:
+After obtaining add-only Photos permission and creating one or more assets, pass their local identifiers in display order:
 
 ```csharp
 var result = await NativeTikTokShare.ShareImagesAsync(
-	[firstImageAsset.LocalIdentifier, secondImageAsset.LocalIdentifier],
+	[firstImageAsset.LocalIdentifier],
 	CancellationToken.None
 );
 
