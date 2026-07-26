@@ -16,8 +16,32 @@ private enum ShareStatus: Int32 {
 	case failed = 3
 }
 
+private final class ShareSession {
+	let callback: KapuschTikTokShareCallback
+	let context: UnsafeMutableRawPointer
+	private(set) var didFinish = false
+
+	init(callback: @escaping KapuschTikTokShareCallback, context: UnsafeMutableRawPointer) {
+		self.callback = callback
+		self.context = context
+	}
+
+	func finish(status: ShareStatus, errorCode: String? = nil) {
+		guard !didFinish else { return }
+		didFinish = true
+		invoke(callback, status: status, errorCode: errorCode, context: context)
+	}
+}
+
 private final class ShareState {
 	nonisolated(unsafe) static var request: TikTokShareRequest?
+	nonisolated(unsafe) static var session: ShareSession?
+
+	static func clear(_ session: ShareSession) {
+		guard self.session === session else { return }
+		request = nil
+		self.session = nil
+	}
 }
 
 private func invoke(
@@ -39,7 +63,7 @@ public func ktk_tiktok_share_images(
 	_ callback: @escaping KapuschTikTokShareCallback,
 	_ context: UnsafeMutableRawPointer
 ) {
-	guard ShareState.request == nil else {
+	guard ShareState.session == nil else {
 		invoke(callback, status: .failed, errorCode: "already_in_progress", context: context)
 		return
 	}
@@ -71,33 +95,41 @@ public func ktk_tiktok_share_images(
 		redirectURI: redirectURI
 	)
 	request.customConfig = .init(clientKey: clientKey, callerUrlScheme: urlScheme)
+	let session = ShareSession(callback: callback, context: context)
 	ShareState.request = request
+	ShareState.session = session
 	let sent = request.send { response in
-		defer { ShareState.request = nil }
+		defer { ShareState.clear(session) }
 		guard let response = response as? TikTokShareResponse else {
-			invoke(callback, status: .failed, errorCode: "invalid_share_response", context: context)
+			session.finish(status: .failed, errorCode: "invalid_share_response")
 			return
 		}
 		switch response.shareState {
 		case .success:
-			invoke(callback, status: .success, context: context)
+			session.finish(status: .success)
 		case .saveAsDraft:
-			invoke(callback, status: .draft, context: context)
+			session.finish(status: .draft)
 		case .cancelled:
-			invoke(callback, status: .cancelled, context: context)
+			session.finish(status: .cancelled)
 		default:
-			invoke(
-				callback,
+			session.finish(
 				status: .failed,
-				errorCode: "tiktok_share_\(response.shareState.rawValue)_\(response.errorCode.rawValue)",
-				context: context
+				errorCode: "tiktok_share_\(response.shareState.rawValue)_\(response.errorCode.rawValue)"
 			)
 		}
 	}
 	if !sent {
-		ShareState.request = nil
-		invoke(callback, status: .failed, errorCode: "share_request_not_sent", context: context)
+		session.finish(status: .failed, errorCode: "share_request_not_sent")
+		ShareState.clear(session)
 	}
+}
+
+@_cdecl("ktk_tiktok_abandon_pending_share")
+public func ktk_tiktok_abandon_pending_share() -> Bool {
+	guard let session = ShareState.session else { return false }
+	session.finish(status: .cancelled, errorCode: "returned_without_callback")
+	ShareState.clear(session)
+	return true
 }
 
 @_cdecl("ktk_tiktok_handle_open_url")

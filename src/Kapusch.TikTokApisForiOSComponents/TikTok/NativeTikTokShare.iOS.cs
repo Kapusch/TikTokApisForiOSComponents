@@ -54,6 +54,8 @@ public static unsafe partial class NativeTikTokShare
 		return HandleOpenUrlNative(nsUrlHandle) != 0;
 	}
 
+	public static bool AbandonPendingShare() => AbandonPendingShareNative() != 0;
+
 	[UnmanagedCallersOnly(CallConvs = [typeof(CallConvCdecl)])]
 	private static void ShareCallback(int status, IntPtr errorCode, IntPtr context)
 	{
@@ -83,4 +85,7 @@ public static unsafe partial class NativeTikTokShare
 
 	[LibraryImport("__Internal", EntryPoint = "ktk_tiktok_handle_open_url")]
 	private static partial byte HandleOpenUrlNative(IntPtr nsUrlHandle);
+
+	[LibraryImport("__Internal", EntryPoint = "ktk_tiktok_abandon_pending_share")]
+	private static partial byte AbandonPendingShareNative();
 }

@@ -14,7 +14,10 @@ if rg -F "NativeLibrary.GetExport" "$managed_source" >/dev/null; then
 	exit 1
 fi
 
-for symbol in ktk_tiktok_handle_open_url ktk_tiktok_share_images; do
+for symbol in \
+	ktk_tiktok_handle_open_url \
+	ktk_tiktok_share_images \
+	ktk_tiktok_abandon_pending_share; do
 	rg -F "EntryPoint = \"$symbol\"" "$managed_source" >/dev/null \
 		|| { echo "Missing static TikTok Share import: $symbol" >&2; exit 1; }
 done
