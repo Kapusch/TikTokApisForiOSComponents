@@ -28,4 +28,9 @@ var result = await NativeTikTokShare.ShareImagesAsync(
 Console.WriteLine($"TikTok share: {result.Status} {result.ErrorCode}");
 ```
 
+If the host app returns from the background while this task remains pending, give
+the SDK callback a short grace period and then call
+`NativeTikTokShare.AbandonPendingShare()`. The task completes as `Cancelled` with
+`returned_without_callback`, and any later SDK callback is ignored.
+
 The SDK handoff and callback require an approved TikTok application and a physical device with TikTok installed.
