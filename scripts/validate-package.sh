@@ -9,7 +9,18 @@ if [ ! -f "$package" ]; then
   exit 1
 fi
 
-if rg -F "NativeLibrary.GetExport" "$managed_source" >/dev/null; then
+contains_fixed_text() {
+	local pattern="$1"
+	local file="$2"
+
+	if command -v rg >/dev/null 2>&1; then
+		rg -F "$pattern" "$file" >/dev/null
+	else
+		grep -Fq -- "$pattern" "$file"
+	fi
+}
+
+if contains_fixed_text "NativeLibrary.GetExport" "$managed_source"; then
 	echo "TikTok Share must use static __Internal imports so iOS retains its native symbols." >&2
 	exit 1
 fi
@@ -18,7 +29,7 @@ for symbol in \
 	ktk_tiktok_handle_open_url \
 	ktk_tiktok_share_images \
 	ktk_tiktok_abandon_pending_share; do
-	rg -F "EntryPoint = \"$symbol\"" "$managed_source" >/dev/null \
+	contains_fixed_text "EntryPoint = \"$symbol\"" "$managed_source" \
 		|| { echo "Missing static TikTok Share import: $symbol" >&2; exit 1; }
 done
 
