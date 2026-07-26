@@ -17,15 +17,20 @@ public override bool ContinueUserActivity(
 	&& NativeTikTokShare.HandleOpenUrl(url.Handle);
 ```
 
-After obtaining add-only Photos permission and creating two assets, pass their local identifiers in display order:
+After obtaining add-only Photos permission and creating one or more assets, pass their local identifiers in display order:
 
 ```csharp
 var result = await NativeTikTokShare.ShareImagesAsync(
-	[firstImageAsset.LocalIdentifier, secondImageAsset.LocalIdentifier],
+	[firstImageAsset.LocalIdentifier],
 	CancellationToken.None
 );
 
 Console.WriteLine($"TikTok share: {result.Status} {result.ErrorCode}");
 ```
+
+If the host app returns from the background while this task remains pending, give
+the SDK callback a short grace period and then call
+`NativeTikTokShare.AbandonPendingShare()`. The task completes as `Cancelled` with
+`returned_without_callback`, and any later SDK callback is ignored.
 
 The SDK handoff and callback require an approved TikTok application and a physical device with TikTok installed.
