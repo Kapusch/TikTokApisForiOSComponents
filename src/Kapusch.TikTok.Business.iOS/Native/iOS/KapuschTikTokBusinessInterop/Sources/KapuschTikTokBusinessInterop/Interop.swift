@@ -192,10 +192,11 @@ public func ktkb_initialize(
 			let nsError = error as NSError?
 			let code = Int32(truncatingIfNeeded: nsError?.code ?? 0)
 			// With disableTracking() the SDK reports -1 ("tracking not enabled"): it is configured and
-			// queues events locally until StartTrack(). That is the expected deferred-start state.
+			// queues events locally until StartTrack(). That is the expected deferred-start state, not an
+			// error, so it reports code 0 like a repeated initialize in the same state does.
 			if deferredStart, code == -1 {
 				SdkState.configured = true
-				session.finish(.initializedTrackingDisabled, code: code, message: nsError?.localizedDescription)
+				session.finish(.initializedTrackingDisabled)
 				return
 			}
 			session.finish(.failed, code: code, message: nsError?.localizedDescription ?? "initialization_failed")
