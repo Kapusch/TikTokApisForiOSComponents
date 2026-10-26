@@ -5,10 +5,14 @@ the names of private consuming applications, are not listed here: pass them at r
 VERIFY_PUBLIC_EXTRA_PATTERNS, one case-insensitive regular expression per line (for example from a
 CI secret or an untracked local file). That check is skipped when the variable is unset or empty.
 Matches are reported by file name only, so the scan never echoes the values it looks for.
+
+Sample Info.template.plist files must also keep every Sample* key empty: ids and the App Secret
+belong in the untracked Info.plist created from the template.
 """
 
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import os
+import plistlib
 import re
 import subprocess
 import sys
@@ -36,6 +40,16 @@ for name in filter(None, files):
     data = path.read_bytes()
     if any(pattern.search(data) for pattern in patterns):
         failures.append(name.decode())
+    posix = PurePosixPath(name.decode())
+    if posix.parts[0] == "samples" and posix.name == "Info.template.plist":
+        try:
+            plist = plistlib.loads(data)
+        except Exception:
+            failures.append(f"{posix} (unreadable plist)")
+            continue
+        filled = sorted(key for key, value in plist.items() if key.startswith("Sample") and value != "")
+        if filled:
+            failures.append(f"{posix} (non-empty {', '.join(filled)})")
 if failures:
     sys.exit("Private identifier or credential found in: " + ", ".join(failures))
 scope = f"{len(extra)} extra pattern(s)" if extra else "no extra patterns (VERIFY_PUBLIC_EXTRA_PATTERNS unset)"
