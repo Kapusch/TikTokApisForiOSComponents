@@ -54,6 +54,10 @@ jobs:
         run: dotnet pack src/Kapusch.TikTok.Business.iOS/Kapusch.TikTok.Business.iOS.csproj -c Release -o artifacts/nuget
       - name: Validate package
         run: scripts/validate-business-package.sh
+      - name: Link the sample (simulator)
+        run: dotnet build samples/Kapusch.TikTok.Business.iOS.Sample/Kapusch.TikTok.Business.iOS.Sample.csproj -c Release -r iossimulator-arm64
+      - name: Link the sample (device, unsigned)
+        run: dotnet build samples/Kapusch.TikTok.Business.iOS.Sample/Kapusch.TikTok.Business.iOS.Sample.csproj -c Release -r ios-arm64 -p:EnableCodeSigning=false
       - uses: actions/upload-artifact@v4
         with:
           name: nuget-business
