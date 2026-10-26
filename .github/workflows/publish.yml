@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   pack_and_publish:
-    runs-on: macos-latest
+    runs-on: macos-15
     permissions:
       contents: read
       packages: write
@@ -58,12 +58,16 @@ jobs:
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "publish_target=$PUBLISH_TARGET" >> "$GITHUB_OUTPUT"
 
+      - name: Select Xcode 26.3
+        # Pinned: the native artifacts must stay consumable by Xcode 26.3 toolchains.
+        run: sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+
       - uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: "10.0.x"
+          dotnet-version: "10.0.203"
 
       - name: Install iOS workload
-        run: dotnet workload install ios
+        run: dotnet workload install ios --version 10.0.203
 
       - name: Build pinned Core + Share wrapper
         run: bash src/Kapusch.TikTokApisForiOSComponents/Native/iOS/build.sh
