@@ -1,0 +1,41 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-ios</TargetFramework>
+    <SupportedOSPlatformVersion>15.0</SupportedOSPlatformVersion>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsTrimmable>true</IsTrimmable>
+    <IsAotCompatible>true</IsAotCompatible>
+    <DefaultItemExcludes>$(DefaultItemExcludes);Native/**</DefaultItemExcludes>
+    <PackageId>Kapusch.TikTok.Business.iOS</PackageId>
+    <AssemblyName>Kapusch.TikTok.Business.iOS</AssemblyName>
+    <RootNamespace>Kapusch.TikTok.Business.iOS</RootNamespace>
+    <Version>1.0.0-rc.1</Version>
+    <Authors>Kapusch</Authors>
+    <Description>TikTok Business SDK (App Events SDK) iOS interop with deterministic native packaging.</Description>
+    <PackageTags>tiktok;app-events;attribution;ios;maui</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <RepositoryUrl>https://github.com/Kapusch/TikTokApisForiOSComponents</RepositoryUrl>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>nuget-readme.md</PackageReadmeFile>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NativeBuildDir Condition="'$(NativeBuildDir)' == '' and Exists('Native/iOS/build/ktkbusiness.xcframework')">Native/iOS/build</NativeBuildDir>
+  </PropertyGroup>
+  <ItemGroup>
+    <Content Remove="Native/**" />
+    <EmbeddedResource Remove="Native/**" />
+    <None Remove="Native/**" />
+    <None Include="buildTransitive/**" Pack="true" PackagePath="buildTransitive/" />
+    <None Include="THIRD_PARTY_NOTICES.md" Pack="true" PackagePath="/" />
+    <None Include="nuget-readme.md" Pack="true" PackagePath="/" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(NativeBuildDir)' != ''">
+    <None Include="$(NativeBuildDir)/ktkbusiness.xcframework/**" Pack="true" PackagePath="ktkbusiness.xcframework/" />
+    <None Include="$(NativeBuildDir)/privacy/**" Pack="true" PackagePath="privacy/" />
+  </ItemGroup>
+  <Target Name="CheckTikTokBusinessNativeAssets" BeforeTargets="GenerateNuspec" Condition="'$(IsPackable)' == 'true'">
+    <Error Condition="'$(NativeBuildDir)' == '' or !Exists('$(NativeBuildDir)/ktkbusiness.xcframework')" Text="Build TikTok Business iOS native assets first with Native/iOS/build.sh." />
+  </Target>
+</Project>
