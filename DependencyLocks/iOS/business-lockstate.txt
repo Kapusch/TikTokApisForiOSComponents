@@ -1,0 +1,4 @@
+# TikTok Business SDK (App Events SDK) for Kapusch.TikTok.Business.iOS.
+# The Share package keeps its own lock in lockstate.txt.
+# URL SHA256 filename extracted-directory
+https://codeload.github.com/tiktok/tiktok-business-ios-sdk/tar.gz/refs/tags/1.7.2 10b04899c3bdff28cd6a192bd577fe5694ab1b426976401efc158641e46c0b52 tiktok-business-ios-sdk-1.7.2.tar.gz tiktok-business-ios-sdk-1.7.2
