@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <UseKapuschTikTokBusinessIosInteropFromSource Condition="'$(UseKapuschTikTokBusinessIosInteropFromSource)' == ''">false</UseKapuschTikTokBusinessIosInteropFromSource>
+    <DisableKapuschTikTokBusinessIosNativeAssets Condition="'$(DisableKapuschTikTokBusinessIosNativeAssets)' == ''">false</DisableKapuschTikTokBusinessIosNativeAssets>
+  </PropertyGroup>
+</Project>

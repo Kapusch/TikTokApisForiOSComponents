@@ -1,0 +1,35 @@
+<Project>
+  <PropertyGroup>
+    <_KapuschTikTokBusinessIosPackageRoot>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..'))</_KapuschTikTokBusinessIosPackageRoot>
+    <_KapuschTikTokBusinessIosAssetRoot Condition="'$(UseKapuschTikTokBusinessIosInteropFromSource)' == 'true'">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../Native/iOS/build'))</_KapuschTikTokBusinessIosAssetRoot>
+    <_KapuschTikTokBusinessIosAssetRoot Condition="'$(UseKapuschTikTokBusinessIosInteropFromSource)' != 'true'">$(_KapuschTikTokBusinessIosPackageRoot)</_KapuschTikTokBusinessIosAssetRoot>
+    <_KapuschTikTokBusinessIosPrivacyRoot>$([System.IO.Path]::Combine('$(_KapuschTikTokBusinessIosAssetRoot)', 'privacy'))</_KapuschTikTokBusinessIosPrivacyRoot>
+  </PropertyGroup>
+  <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' and '$(DisableKapuschTikTokBusinessIosNativeAssets)' != 'true'">
+    <!-- Same resource bundle name as the official CocoaPods integration (TikTokBusinessSDK_Privacy). -->
+    <BundleResource Include="$(_KapuschTikTokBusinessIosPrivacyRoot)/TikTokBusinessSDK.PrivacyInfo.xcprivacy" LogicalName="TikTokBusinessSDK_Privacy.bundle/PrivacyInfo.xcprivacy" />
+  </ItemGroup>
+  <Target Name="KapuschTikTokBusiness_InjectIosNativeReferences" BeforeTargets="CoreCompile" Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' and '$(DisableKapuschTikTokBusinessIosNativeAssets)' != 'true'">
+    <PropertyGroup>
+      <_KapuschTikTokBusinessIosWrapper>$([System.IO.Path]::Combine('$(_KapuschTikTokBusinessIosAssetRoot)', 'ktkbusiness.xcframework'))</_KapuschTikTokBusinessIosWrapper>
+    </PropertyGroup>
+    <Error Condition="!Exists('$(_KapuschTikTokBusinessIosWrapper)') and '$(UseKapuschTikTokBusinessIosInteropFromSource)' == 'true'" Text="Kapusch.TikTok.Business.iOS source mode: missing $(_KapuschTikTokBusinessIosWrapper). Build it first with src/Kapusch.TikTok.Business.iOS/Native/iOS/build.sh." />
+    <Error Condition="!Exists('$(_KapuschTikTokBusinessIosWrapper)') and '$(UseKapuschTikTokBusinessIosInteropFromSource)' != 'true'" Text="Kapusch.TikTok.Business.iOS native wrapper is missing: $(_KapuschTikTokBusinessIosWrapper)" />
+    <ItemGroup>
+      <!--
+        ForceLoad keeps every Objective-C class and category of the static SDK (equivalent to -ObjC for
+        this archive; the SDK looks several classes up with NSClassFromString). IsCxx adds -lc++ for the
+        crash monitor's C++ unit. The Swift runtime is linked by the .NET iOS SDK.
+      -->
+      <NativeReference Include="$(_KapuschTikTokBusinessIosWrapper)">
+        <Kind>Static</Kind>
+        <ForceLoad>true</ForceLoad>
+        <IsCxx>true</IsCxx>
+        <LinkWithSwiftSystemLibraries>true</LinkWithSwiftSystemLibraries>
+        <Frameworks>UIKit CoreGraphics CoreTelephony AdSupport StoreKit WebKit SystemConfiguration</Frameworks>
+        <WeakFrameworks>AppTrackingTransparency</WeakFrameworks>
+        <LinkerFlags>-lsqlite3 -lz</LinkerFlags>
+      </NativeReference>
+    </ItemGroup>
+  </Target>
+</Project>
