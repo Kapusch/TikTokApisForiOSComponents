@@ -11,6 +11,12 @@ namespace Kapusch.TikTok.Business.iOS;
 /// Nothing is sent and no SDK state is created until <see cref="InitializeAsync"/> is called: every
 /// other member returns <see langword="false"/> (or <see langword="null"/>) before a successful
 /// initialization. Gate <see cref="InitializeAsync"/> on the user's consent.
+/// <para>
+/// Only <see cref="InitializeAsync"/> switches to the main thread. Every other member calls the SDK
+/// synchronously on the calling thread, so calls made in sequence take effect in that order: an event
+/// tracked right after <see cref="Identify"/> carries the identity, and one tracked after
+/// <see cref="Logout"/> does not.
+/// </para>
 /// </remarks>
 public static unsafe partial class TikTokBusinessSdk
 {

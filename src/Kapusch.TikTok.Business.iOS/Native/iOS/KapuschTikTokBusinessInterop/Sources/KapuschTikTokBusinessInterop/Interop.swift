@@ -136,6 +136,12 @@ private func makeConfig(_ settings: BusinessConfig) -> TikTokConfig? {
 	return config
 }
 
+// Execution model: only ktkb_initialize hops to the main thread, because initializeSdk schedules an
+// NSTimer on the current run loop. Every other export calls the SDK synchronously on the caller's
+// thread, so calls made in sequence take effect in that order. The SDK reads the identity when it
+// creates each event, so `Identify(); Track...()` and `Logout(); Track...()` must not be reordered.
+// This matches how the SDK itself calls trackEvent and flush from its network-callback threads;
+// the remaining setters only write a flag or hand work off to the SDK's own queues.
 private func runOnMain(_ body: @escaping @Sendable () -> Void) {
 	if Thread.isMainThread {
 		body()
@@ -200,21 +206,17 @@ public func ktkb_initialize(
 @_cdecl("ktkb_start_track")
 public func ktkb_start_track() -> Bool {
 	guard SdkState.configured else { return false }
-	runOnMain {
-		TikTokBusiness.setTrackingEnabled(true)
-		TikTokBusiness.explicitlyFlush()
-	}
+	TikTokBusiness.setTrackingEnabled(true)
+	TikTokBusiness.explicitlyFlush()
 	return true
 }
 
 @_cdecl("ktkb_set_tracking_enabled")
 public func ktkb_set_tracking_enabled(_ enabled: Bool) -> Bool {
 	guard SdkState.configured else { return false }
-	runOnMain {
-		TikTokBusiness.setTrackingEnabled(enabled)
-		if enabled {
-			TikTokBusiness.explicitlyFlush()
-		}
+	TikTokBusiness.setTrackingEnabled(enabled)
+	if enabled {
+		TikTokBusiness.explicitlyFlush()
 	}
 	return true
 }
@@ -253,18 +255,14 @@ public func ktkb_identify(
 	let phone = string(phoneNumber)
 	let mail = string(email)
 	guard id != nil || userName != nil || phone != nil || mail != nil else { return false }
-	runOnMain {
-		TikTokBusiness.identify(withExternalID: id, externalUserName: userName, phoneNumber: phone, email: mail)
-	}
+	TikTokBusiness.identify(withExternalID: id, externalUserName: userName, phoneNumber: phone, email: mail)
 	return true
 }
 
 @_cdecl("ktkb_logout")
 public func ktkb_logout() -> Bool {
 	guard SdkState.configured else { return false }
-	runOnMain {
-		TikTokBusiness.logout()
-	}
+	TikTokBusiness.logout()
 	return true
 }
 
@@ -278,9 +276,7 @@ public func ktkb_flush() -> Bool {
 @_cdecl("ktkb_update_access_token")
 public func ktkb_update_access_token(_ accessToken: UnsafePointer<CChar>) -> Bool {
 	guard SdkState.configured, let token = string(accessToken) else { return false }
-	runOnMain {
-		TikTokBusiness.updateAccessToken(token)
-	}
+	TikTokBusiness.updateAccessToken(token)
 	return true
 }
 
