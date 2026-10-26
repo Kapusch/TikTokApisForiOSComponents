@@ -185,3 +185,21 @@ example in a unit-test project.
 
 The SDK installs its own crash monitor when TikTok's remote configuration enables it.
 Qualify crash reporting when the app also uses another crash reporter.
+
+Because the archive is force-loaded, every global it defines is linked into the app. Two
+upstream globals have generic, unprefixed names:
+
+| Symbol | Upstream definition |
+|---|---|
+| `_handleConfiguration` | function in `TTSDKCrash/TTSDKCrashRecording/TTSDKCrashC.c` (KSCrash-derived) |
+| `_defaultPattern` | `NSString * const` in `Core/TikTokViewUtility.m` |
+
+Another static library in the app that defines a strong global with the same name makes
+the link fail with a duplicate-symbol error. Other KSCrash-derived crash reporters and
+other Objective-C SDKs are the likely sources. The wrapper does not rename upstream
+symbols, because it never patches upstream sources. To check your own static SDKs, build
+this package and run:
+
+```sh
+scripts/check-native-symbol-collisions.sh --with path/to/Other.xcframework --with path/to/libOther.a
+```
