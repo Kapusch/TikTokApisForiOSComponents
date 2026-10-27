@@ -39,16 +39,16 @@ scripts/check-native-symbol-collisions.sh
 python3 -I scripts/verify-public.py
 ```
 
-`verify-public.py` checks tracked files for pasted App Secrets and checks that sample
-`Info.template.plist` files keep every `Sample*` key empty. To also ban identifiers that must
-not be written in this public tree, pass them at run time, one case-insensitive regular
-expression per line, for example from an untracked file:
+`verify-public.py` checks tracked files for pasted App Secrets and access tokens, and checks
+that sample `Info.template.plist` files keep every `Sample*` key empty. Terms that must never
+appear in this public tree, such as the names of private consuming apps, are never tracked: the
+scanner reads them at run time, one per line or comma-separated, matched case-insensitively as
+literal text, from the `KAPUSCH_PRIVATE_TERMS` environment variable and from the untracked file
+`<git dir>/info/private-terms` (`#` starts a comment). The private-term check is skipped with a
+notice when neither source provides a term, and failures name the file and `private term #N`,
+never the term itself.
 
-```sh
-VERIFY_PUBLIC_EXTRA_PATTERNS="$(cat ~/.config/verify-public-patterns)" python3 -I scripts/verify-public.py
-```
-
-CI reads the same variable from the `VERIFY_PUBLIC_EXTRA_PATTERNS` repository secret.
+CI reads `KAPUSCH_PRIVATE_TERMS` from the repository secret of the same name.
 
 For direct project consumption, see [`Docs/SourceMode.md`](Docs/SourceMode.md) and
 [`Docs/Business/SourceMode.md`](Docs/Business/SourceMode.md). Releases follow

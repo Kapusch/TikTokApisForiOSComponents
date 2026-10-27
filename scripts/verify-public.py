@@ -1,56 +1,95 @@
-"""Fails when a tracked file contains a credential-looking value or a caller-supplied private identifier.
+"""Fail when a tracked file contains a real-looking credential, a filled sample template or a private term.
 
-The tracked patterns are generic. Identifiers that must never appear in this public tree, such as
-the names of private consuming applications, are not listed here: pass them at run time in
-VERIFY_PUBLIC_EXTRA_PATTERNS, one case-insensitive regular expression per line (for example from a
-CI secret or an untracked local file). That check is skipped when the variable is unset or empty.
-Matches are reported by file name only, so the scan never echoes the values it looks for.
+This repository is a public, generic wrapper. The generic checks below are tracked. Terms that
+must never appear (for example the names of private consuming apps) are not: they are read at run
+time from an untracked source so the scanner never publishes them.
+
+Private terms, one per line or comma-separated, matched case-insensitively as literal text:
+  - the KAPUSCH_PRIVATE_TERMS environment variable (CI reads it from a repository secret);
+  - the file <git dir>/info/private-terms ('#' starts a comment).
+The private-term check is skipped, with a notice, when neither source provides a term.
+Failures name the file and the term's position, never the term itself.
 
 Sample Info.template.plist files must also keep every Sample* key empty: ids and the App Secret
 belong in the untracked Info.plist created from the template.
 """
 
-from pathlib import Path, PurePosixPath
+from __future__ import annotations
+
 import os
 import plistlib
 import re
 import subprocess
 import sys
+from pathlib import Path, PurePosixPath
 
-root = Path(__file__).resolve().parents[1]
-patterns = [
+ROOT = Path(__file__).resolve().parents[1]
+
+PATTERNS = {
     # A TikTok App Secret or Events API access token pasted into a sample or doc.
-    re.compile(rb"(?i)(?:access_?token|app_?secret)\s*[:=]\s*[\"'][0-9a-f]{32,}[\"']"),
-]
+    "App Secret or access token": re.compile(
+        rb"(?i)(?:access_?token|app_?secret)\s*[:=]\s*[\"'][0-9a-f]{32,}[\"']"
+    ),
+}
 
-extra = [line.strip() for line in os.environ.get("VERIFY_PUBLIC_EXTRA_PATTERNS", "").splitlines()]
-extra = [line for line in extra if line and not line.startswith("#")]
-for index, source in enumerate(extra, start=1):
+
+def split_terms(text: str) -> list[str]:
+    terms = []
+    for line in text.splitlines():
+        line = line.split("#", 1)[0]
+        terms.extend(part.strip() for part in line.split(","))
+    return [term for term in terms if term]
+
+
+def load_private_terms() -> list[str]:
+    terms = split_terms(os.environ.get("KAPUSCH_PRIVATE_TERMS", ""))
+    git_dir = subprocess.check_output(["git", "rev-parse", "--absolute-git-dir"], cwd=ROOT, text=True).strip()
+    terms_file = Path(git_dir) / "info" / "private-terms"
+    if terms_file.is_file():
+        terms.extend(split_terms(terms_file.read_text(encoding="utf-8")))
+    return list(dict.fromkeys(terms))
+
+
+def filled_sample_keys(name: str, data: bytes) -> str | None:
+    posix = PurePosixPath(name)
+    if posix.parts[0] != "samples" or posix.name != "Info.template.plist":
+        return None
     try:
-        patterns.append(re.compile(source.encode(), re.IGNORECASE))
-    except re.error:
-        sys.exit(f"VERIFY_PUBLIC_EXTRA_PATTERNS line {index} is not a valid regular expression")
+        plist = plistlib.loads(data)
+    except Exception:
+        return "unreadable plist"
+    filled = sorted(key for key, value in plist.items() if key.startswith("Sample") and value != "")
+    return f"non-empty {', '.join(filled)}" if filled else None
 
-files = subprocess.check_output(["git", "ls-files", "-z"], cwd=root).split(b"\0")
-failures = []
-for name in filter(None, files):
-    path = root / name.decode()
-    if not path.is_file():
-        continue
-    data = path.read_bytes()
-    if any(pattern.search(data) for pattern in patterns):
-        failures.append(name.decode())
-    posix = PurePosixPath(name.decode())
-    if posix.parts[0] == "samples" and posix.name == "Info.template.plist":
-        try:
-            plist = plistlib.loads(data)
-        except Exception:
-            failures.append(f"{posix} (unreadable plist)")
+
+def main() -> int:
+    files = [f for f in subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT).decode().split("\0") if f]
+    private = [
+        (f"private term #{index}", re.compile(re.escape(term.encode()), re.IGNORECASE))
+        for index, term in enumerate(load_private_terms(), start=1)
+    ]
+    errors = []
+    for name in files:
+        path = ROOT / name
+        if not path.is_file():
             continue
-        filled = sorted(key for key, value in plist.items() if key.startswith("Sample") and value != "")
-        if filled:
-            failures.append(f"{posix} (non-empty {', '.join(filled)})")
-if failures:
-    sys.exit("Private identifier or credential found in: " + ", ".join(failures))
-scope = f"{len(extra)} extra pattern(s)" if extra else "no extra patterns (VERIFY_PUBLIC_EXTRA_PATTERNS unset)"
-print(f"Public tree scan passed ({len([f for f in files if f])} tracked files, {scope})")
+        data = path.read_bytes()
+        for label, pattern in [*private, *PATTERNS.items()]:
+            if pattern.search(data):
+                errors.append(f"{name}: {label}")
+        template = filled_sample_keys(name, data)
+        if template:
+            errors.append(f"{name}: {template}")
+    if errors:
+        print("Public tree scan failed:\n  " + "\n  ".join(errors), file=sys.stderr)
+        return 1
+    if private:
+        scope = f"{len(private)} private term(s)"
+    else:
+        scope = "no private terms configured (set KAPUSCH_PRIVATE_TERMS or .git/info/private-terms)"
+    print(f"Public tree scan passed ({len(files)} tracked files, {scope})")
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())
