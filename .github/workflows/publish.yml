@@ -7,9 +7,20 @@ on:
         description: "Publish this version to NuGet.org; leave empty for a GitHub Packages preview"
         required: false
         type: string
+      package:
+        description: "Package to build: share (Kapusch.TikTok.iOS) or business (Kapusch.TikTok.Business.iOS)"
+        required: false
+        default: share
+        type: choice
+        options:
+          - share
+          - business
   push:
     tags:
+      # vX.Y.Z[-rc.N] releases the Share package; business-vX.Y.Z[-rc.N] releases the Business package.
+      # Tag filters match the whole tag name, so "v*" never matches "business-v*".
       - "v*"
+      - "business-v*"
 
 permissions:
   contents: read
@@ -27,17 +38,51 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Determine package version
+      - name: Determine package and version
         id: version
         shell: bash
         run: |
           REF="${{ github.ref }}"
           MANUAL_VERSION="${{ github.event.inputs.manual_version }}"
-          CSPROJ="src/Kapusch.TikTokApisForiOSComponents/Kapusch.TikTokApisForiOSComponents.csproj"
+          PACKAGE="${{ github.event.inputs.package }}"
+
+          if [[ "$REF" =~ ^refs/tags/business-v ]]; then
+            PACKAGE="business"
+          elif [[ "$REF" =~ ^refs/tags/v ]]; then
+            PACKAGE="share"
+          fi
+          PACKAGE="${PACKAGE:-share}"
+
+          case "$PACKAGE" in
+            share)
+              PACKAGE_ID="Kapusch.TikTok.iOS"
+              CSPROJ="src/Kapusch.TikTokApisForiOSComponents/Kapusch.TikTokApisForiOSComponents.csproj"
+              NATIVE_BUILD="src/Kapusch.TikTokApisForiOSComponents/Native/iOS/build.sh"
+              VALIDATOR="scripts/validate-package.sh"
+              ;;
+            business)
+              PACKAGE_ID="Kapusch.TikTok.Business.iOS"
+              CSPROJ="src/Kapusch.TikTok.Business.iOS/Kapusch.TikTok.Business.iOS.csproj"
+              NATIVE_BUILD="src/Kapusch.TikTok.Business.iOS/Native/iOS/build.sh"
+              VALIDATOR="scripts/validate-business-package.sh"
+              ;;
+            *)
+              echo "ERROR: unknown package '$PACKAGE'."
+              exit 1
+              ;;
+          esac
           BASE_VERSION=$(grep -oE '<Version>[^<]+' "$CSPROJ" | head -n 1 | sed 's/<Version>//')
 
           if [[ -n "$MANUAL_VERSION" ]]; then
             VERSION="$MANUAL_VERSION"
+            PUBLISH_TARGET="nuget"
+          elif [[ "$REF" =~ ^refs/tags/business-v ]]; then
+            TAG="${REF#refs/tags/}"
+            if [[ ! "$TAG" =~ ^business-v[0-9]+\.[0-9]+\.[0-9]+(-rc\.[0-9]+)?$ ]]; then
+              echo "ERROR: Business release tags must be business-vX.Y.Z or business-vX.Y.Z-rc.N."
+              exit 1
+            fi
+            VERSION="${TAG#business-v}"
             PUBLISH_TARGET="nuget"
           elif [[ "$REF" =~ ^refs/tags/v ]]; then
             VERSION="${REF#refs/tags/v}"
@@ -55,6 +100,11 @@ jobs:
             fi
           fi
 
+          echo "Package: $PACKAGE_ID $VERSION -> $PUBLISH_TARGET"
+          echo "package_id=$PACKAGE_ID" >> "$GITHUB_OUTPUT"
+          echo "csproj=$CSPROJ" >> "$GITHUB_OUTPUT"
+          echo "native_build=$NATIVE_BUILD" >> "$GITHUB_OUTPUT"
+          echo "validator=$VALIDATOR" >> "$GITHUB_OUTPUT"
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "publish_target=$PUBLISH_TARGET" >> "$GITHUB_OUTPUT"
 
@@ -69,18 +119,18 @@ jobs:
       - name: Install iOS workload
         run: dotnet workload install ios --version 10.0.203
 
-      - name: Build pinned Core + Share wrapper
-        run: bash src/Kapusch.TikTokApisForiOSComponents/Native/iOS/build.sh
+      - name: Build pinned native wrapper
+        run: bash "${{ steps.version.outputs.native_build }}"
 
       - name: Pack
         run: |
-          dotnet pack src/Kapusch.TikTokApisForiOSComponents/Kapusch.TikTokApisForiOSComponents.csproj \
+          dotnet pack "${{ steps.version.outputs.csproj }}" \
             -c Release \
             -o artifacts/nuget \
             /p:PackageVersion="${{ steps.version.outputs.version }}"
 
       - name: Validate package
-        run: scripts/validate-package.sh "artifacts/nuget/Kapusch.TikTok.iOS.${{ steps.version.outputs.version }}.nupkg"
+        run: ${{ steps.version.outputs.validator }} "artifacts/nuget/${{ steps.version.outputs.package_id }}.${{ steps.version.outputs.version }}.nupkg"
 
       - name: Push to NuGet.org
         if: steps.version.outputs.publish_target == 'nuget'

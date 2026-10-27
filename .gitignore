@@ -5,3 +5,4 @@ src/**/Native/iOS/build/
 src/**/Native/iOS/upstream/
 *.user
 *.suo
+samples/**/Info.plist

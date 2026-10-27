@@ -31,3 +31,44 @@ jobs:
           name: nuget
           path: artifacts/nuget/*.nupkg
 
+
+  build_pack_business_ios:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select Xcode 26.3
+        # Pinned: the static archive contains Swift objects that must stay linkable by Xcode 26.3 toolchains.
+        run: sudo xcode-select --switch /Applications/Xcode_26.3.app/Contents/Developer
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.203"
+      - name: Install iOS workload
+        run: dotnet workload install ios --version 10.0.203
+      - name: Build pinned TikTok Business SDK wrapper
+        run: bash src/Kapusch.TikTok.Business.iOS/Native/iOS/build.sh
+      - name: Build Share wrapper for the collision check
+        run: bash src/Kapusch.TikTokApisForiOSComponents/Native/iOS/build.sh
+      - name: Check Share and Business native symbol collisions
+        run: scripts/check-native-symbol-collisions.sh
+      - name: Pack
+        run: dotnet pack src/Kapusch.TikTok.Business.iOS/Kapusch.TikTok.Business.iOS.csproj -c Release -o artifacts/nuget
+      - name: Validate package
+        run: scripts/validate-business-package.sh
+      - name: Link the sample (simulator)
+        run: dotnet build samples/Kapusch.TikTok.Business.iOS.Sample/Kapusch.TikTok.Business.iOS.Sample.csproj -c Release -r iossimulator-arm64
+      - name: Link the sample (device, unsigned)
+        run: dotnet build samples/Kapusch.TikTok.Business.iOS.Sample/Kapusch.TikTok.Business.iOS.Sample.csproj -c Release -r ios-arm64 -p:EnableCodeSigning=false
+      - uses: actions/upload-artifact@v4
+        with:
+          name: nuget-business
+          path: artifacts/nuget/*.nupkg
+
+  public_tree:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Scan tracked files for private identifiers and credentials
+        env:
+          # Private terms kept outside the public tree; the scan skips that check when unset.
+          KAPUSCH_PRIVATE_TERMS: ${{ secrets.KAPUSCH_PRIVATE_TERMS }}
+        run: python3 -I scripts/verify-public.py
